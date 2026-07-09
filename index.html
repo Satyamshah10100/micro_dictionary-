@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lexi — Micro-Dictionary & Resource Hub</title>
+
+<!-- Tailwind CSS via CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Google Font: Inter for clean, modern typography -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script>
+  // Extend Tailwind's default theme with our slate/indigo palette + font
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+        },
+        colors: {
+          brand: {
+            50: '#eef2ff',
+            100: '#e0e7ff',
+            500: '#6366f1',
+            600: '#4f46e5',
+            700: '#4338ca',
+          }
+        },
+        keyframes: {
+          fadeInUp: {
+            '0%': { opacity: 0, transform: 'translateY(12px)' },
+            '100%': { opacity: 1, transform: 'translateY(0)' },
+          },
+          pulseSoft: {
+            '0%, 100%': { opacity: 1 },
+            '50%': { opacity: .5 },
+          }
+        },
+        animation: {
+          fadeInUp: 'fadeInUp .45s ease-out both',
+          pulseSoft: 'pulseSoft 1.4s ease-in-out infinite',
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  /* Small custom touches Tailwind utilities can't express cleanly */
+  html { scroll-behavior: smooth; }
+  body { -webkit-font-smoothing: antialiased; }
+
+  /* Custom scrollbar for the whole page (subtle, not distracting) */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 9999px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* Focus ring consistency for accessibility across custom elements */
+  .focus-ring:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+  }
+</style>
+</head>
+
+<body class="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col">
+
+  <!-- ============ HEADER (visible once results appear, keeps search accessible) ============ -->
+  <header id="stickyHeader" class="hidden sticky top-0 z-20 bg-slate-50/80 backdrop-blur border-b border-slate-200">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-4">
+      <div class="flex items-center gap-2 shrink-0 cursor-pointer" id="logoSmall">
+        <div class="w-8 h-8 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold text-sm">L</div>
+        <span class="font-bold text-slate-800 text-lg tracking-tight">Lexi</span>
+      </div>
+      <!-- Compact search bar (mirrors the main one) -->
+      <div class="relative flex-1 search-shell">
+        <input
+          id="searchInputTop"
+          type="text"
+          placeholder="Search another word..."
+          autocomplete="off"
+          class="focus-ring w-full rounded-full border border-slate-200 bg-white pl-11 pr-4 py-2.5 text-sm shadow-sm focus:border-brand-500 transition"
+        />
+        <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+        </svg>
+        <div id="suggestionBox" class="hidden absolute left-0 right-0 top-full mt-2 z-10">
+          <ul id="suggestionList" class="rounded-2xl border border-slate-200 bg-white shadow-lg overflow-hidden"></ul>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ MAIN CONTENT ============ -->
+  <main class="flex-1 flex flex-col items-center px-4 sm:px-6">
+
+    <!-- ---------- HOMEPAGE / HERO (Google-style centered search) ---------- -->
+    <section id="hero" class="w-full max-w-2xl flex-1 flex flex-col items-center justify-center text-center py-20">
+      <div class="mb-8">
+        <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-brand-600 flex items-center justify-center text-white font-extrabold text-2xl shadow-lg shadow-brand-500/20">L</div>
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">Lexi</h1>
+        <p class="mt-2 text-slate-500 text-base sm:text-lg">Look up any word. Get meaning, sound, and context — instantly.</p>
+      </div>
+
+      <div class="w-full">
+        <div class="relative search-shell">
+          <input
+            id="searchInputMain"
+            type="text"
+            placeholder="Type a word, e.g. “serendipity”"
+            autocomplete="off"
+            class="focus-ring w-full rounded-full border border-slate-200 bg-white pl-14 pr-32 py-4 text-base sm:text-lg shadow-md hover:shadow-lg focus:border-brand-500 transition placeholder:text-slate-400"
+          />
+          <svg class="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+          </svg>
+          <button
+            id="searchButtonMain"
+            class="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-brand-600 hover:bg-brand-700 text-white font-semibold px-5 py-2.5 text-sm sm:text-base transition"
+          >
+            Search
+          </button>
+          <div id="suggestionBox" class="hidden absolute left-0 right-0 top-full mt-2 z-10">
+            <ul id="suggestionList" class="rounded-2xl border border-slate-200 bg-white shadow-lg overflow-hidden"></ul>
+          </div>
+        </div>
+
+        <!-- Quick suggestion chips to invite first-time use -->
+        <div class="mt-5 flex flex-wrap justify-center gap-2">
+          <span class="text-xs text-slate-400 mr-1 mt-1">Try:</span>
+          <button class="suggestion-chip text-xs sm:text-sm px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:border-brand-400 hover:text-brand-600 transition">serendipity</button>
+          <button class="suggestion-chip text-xs sm:text-sm px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:border-brand-400 hover:text-brand-600 transition">ephemeral</button>
+          <button class="suggestion-chip text-xs sm:text-sm px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:border-brand-400 hover:text-brand-600 transition">resilience</button>
+        </div>
+
+        <div id="recentSearchesWrap" class="mt-5 hidden">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Recent searches</p>
+          <div id="recentSearches" class="flex flex-wrap justify-center gap-2"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- RESULTS AREA (hidden until a search happens) ---------- -->
+    <section id="resultsArea" class="hidden w-full max-w-2xl py-8 sm:py-10">
+
+      <!-- Loading state: soft skeleton pulse -->
+      <div id="loadingState" class="hidden">
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 sm:p-8 animate-pulseSoft">
+          <div class="h-8 w-40 bg-slate-200 rounded-lg mb-3"></div>
+          <div class="h-4 w-24 bg-slate-200 rounded-lg mb-6"></div>
+          <div class="h-4 w-full bg-slate-200 rounded-lg mb-2"></div>
+          <div class="h-4 w-3/4 bg-slate-200 rounded-lg mb-6"></div>
+          <div class="h-16 w-full bg-slate-100 rounded-2xl"></div>
+        </div>
+      </div>
+
+      <!-- Error state: friendly "not found" message -->
+      <div id="errorState" class="hidden text-center bg-white rounded-3xl shadow-sm border border-slate-100 p-10 animate-fadeInUp">
+        <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-rose-50 flex items-center justify-center">
+          <svg class="w-7 h-7 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 21a9 9 0 100-18 9 9 0 000 18z" />
+          </svg>
+        </div>
+        <h3 class="text-lg font-semibold text-slate-700">Word not found</h3>
+        <p class="text-slate-500 mt-1 text-sm">We couldn't find a definition for that. Please check the spelling or try another word.</p>
+        <button id="webHelpBtn" class="focus-ring mt-5 inline-flex items-center justify-center rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 transition">
+          Search the web for this word
+        </button>
+      </div>
+
+      <!-- Result Card: populated dynamically by JavaScript -->
+      <div id="resultCard" class="hidden bg-white rounded-3xl shadow-sm border border-slate-100 p-6 sm:p-8 animate-fadeInUp">
+
+        <!-- Word + pronunciation row -->
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="wordTitle" class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight"></h2>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span id="phonetic" class="text-brand-600 text-sm sm:text-base font-medium"></span>
+              <button id="playAudioBtn" class="focus-ring hidden w-8 h-8 rounded-full bg-brand-50 hover:bg-brand-100 flex items-center justify-center transition" title="Play pronunciation">
+                <svg class="w-4 h-4 text-brand-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <span id="partOfSpeech" class="hidden shrink-0 text-xs font-semibold uppercase tracking-wide text-brand-700 bg-brand-50 px-3 py-1.5 rounded-full"></span>
+        </div>
+
+        <!-- Definition -->
+        <p id="definition" class="mt-5 text-slate-600 leading-relaxed text-base"></p>
+
+        <div id="definitionsList" class="mt-5 space-y-3"></div>
+
+        <!-- Real-life example, in a subtle quote box -->
+        <div id="exampleBox" class="hidden mt-5 bg-indigo-50/60 border-l-4 border-brand-400 rounded-r-xl px-4 py-3">
+          <p class="text-xs font-semibold text-brand-700 uppercase tracking-wide mb-1">Real-life example</p>
+          <p id="exampleText" class="text-slate-700 italic text-sm sm:text-base">"..."</p>
+        </div>
+
+        <!-- Synonyms -->
+        <div id="synonymsSection" class="hidden mt-6">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Synonyms</p>
+          <div id="synonymsList" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <!-- Learn More Resources -->
+        <div class="mt-7 pt-6 border-t border-slate-100">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Learn more</p>
+          <div id="resourceLinks" class="flex flex-col sm:flex-row gap-2.5"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="text-center text-xs text-slate-400 py-6">
+    Definitions powered by the Free Dictionary API. Built for curious minds.
+  </footer>
+
+<script>
+  /* ==========================================================================
+     LEXI — Micro-Dictionary & Resource Hub
+     Vanilla JS logic: search handling, API fetch, rendering, graceful fallback
+     ========================================================================== */
+
+  // ---- Element references ----
+  const hero            = document.getElementById('hero');
+  const stickyHeader     = document.getElementById('stickyHeader');
+  const resultsArea      = document.getElementById('resultsArea');
+  const loadingState     = document.getElementById('loadingState');
+  const errorState       = document.getElementById('errorState');
+  const resultCard       = document.getElementById('resultCard');
+
+  const searchInputMain  = document.getElementById('searchInputMain');
+  const searchInputTop   = document.getElementById('searchInputTop');
+  const searchButtonMain = document.getElementById('searchButtonMain');
+  const logoSmall        = document.getElementById('logoSmall');
+  const suggestionBox    = document.getElementById('suggestionBox');
+  const suggestionList   = document.getElementById('suggestionList');
+  const recentSearchesWrap = document.getElementById('recentSearchesWrap');
+  const recentSearches   = document.getElementById('recentSearches');
+  const webHelpBtn       = document.getElementById('webHelpBtn');
+
+  const wordTitle        = document.getElementById('wordTitle');
+  const phoneticEl       = document.getElementById('phonetic');
+  const playAudioBtn     = document.getElementById('playAudioBtn');
+  const partOfSpeechEl   = document.getElementById('partOfSpeech');
+  const definitionEl     = document.getElementById('definition');
+  const definitionsList  = document.getElementById('definitionsList');
+  const exampleBox       = document.getElementById('exampleBox');
+  const exampleText      = document.getElementById('exampleText');
+  const synonymsSection  = document.getElementById('synonymsSection');
+  const synonymsList     = document.getElementById('synonymsList');
+  const resourceLinks    = document.getElementById('resourceLinks');
+
+  let currentAudio = null; // holds the Audio object so we can replay pronunciation
+  let recentWords = JSON.parse(localStorage.getItem('lexi-recent-searches') || '[]');
+
+  // ---- API endpoint ----
+  const API_BASE = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
+  const WORD_BANK = ['serendipity','ephemeral','resilience','labyrinth','eloquent','curiosity','diligent','melancholy','vivid','benevolent','meticulous','candid','abundant','magnificent','ponder','analyze','collaborate','inquisitive','quixotic','lucid','verdant'];
+
+  function saveRecentSearch(word) {
+    const normalized = word.trim().toLowerCase();
+    if (!normalized) return;
+
+    recentWords = recentWords.filter(item => item !== normalized);
+    recentWords.unshift(normalized);
+    recentWords = recentWords.slice(0, 8);
+    localStorage.setItem('lexi-recent-searches', JSON.stringify(recentWords));
+    renderRecentSearches();
+  }
+
+  function renderRecentSearches() {
+    if (!recentWords.length) {
+      recentSearchesWrap.classList.add('hidden');
+      return;
+    }
+
+    recentSearchesWrap.classList.remove('hidden');
+    recentSearches.innerHTML = '';
+    recentWords.forEach(item => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:border-brand-400 hover:text-brand-600 transition';
+      chip.textContent = item;
+      chip.addEventListener('click', () => performSearch(item));
+      recentSearches.appendChild(chip);
+    });
+  }
+
+  function showSuggestions(query) {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      suggestionBox.classList.add('hidden');
+      return;
+    }
+
+    const matches = WORD_BANK.filter(word => word.toLowerCase().includes(normalized)).slice(0, 6);
+    suggestionList.innerHTML = '';
+
+    if (!matches.length) {
+      suggestionBox.classList.add('hidden');
+      return;
+    }
+
+    matches.forEach(word => {
+      const item = document.createElement('li');
+      item.className = 'cursor-pointer px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-brand-700 transition';
+      item.textContent = word;
+      item.addEventListener('click', () => {
+        performSearch(word);
+        hideSuggestions();
+      });
+      suggestionList.appendChild(item);
+    });
+
+    suggestionBox.classList.remove('hidden');
+  }
+
+  function hideSuggestions() {
+    suggestionBox.classList.add('hidden');
+  }
+
+  function openWebHelp(word) {
+    const term = encodeURIComponent(word.trim());
+    window.open(`https://www.google.com/search?q=define+${term}`, '_blank', 'noopener,noreferrer');
+  }
+
+  /**
+   * Master function: runs a full search for the given word.
+   * Handles UI state transitions: hero -> loading -> result/error.
+   */
+  async function performSearch(rawWord) {
+    const word = rawWord.trim();
+    if (!word) return; // ignore empty searches
+
+    saveRecentSearch(word);
+
+    // Reveal the results layout and the sticky header (once we've searched at least once)
+    hero.classList.add('hidden');
+    stickyHeader.classList.remove('hidden');
+    resultsArea.classList.remove('hidden');
+
+    // Sync both search inputs so switching between them feels seamless
+    searchInputMain.value = word;
+    searchInputTop.value = word;
+    hideSuggestions();
+
+    showLoading();
+
+    try {
+      const response = await fetch(API_BASE + encodeURIComponent(word));
+
+      if (!response.ok) {
+        // API returns 404 for words it doesn't recognize
+        showError(word);
+        return;
+      }
+
+      const data = await response.json();
+      renderResult(data[0], word); // API returns an array; we use the first, most relevant entry
+    } catch (err) {
+      // Network failure or unexpected error — treat as graceful "not found" for the user
+      console.error('Dictionary lookup failed:', err);
+      showError(word);
+    }
+  }
+
+  // ---- UI state helpers ----
+  function showLoading() {
+    loadingState.classList.remove('hidden');
+    errorState.classList.add('hidden');
+    resultCard.classList.add('hidden');
+  }
+
+  function showError(word = '') {
+    loadingState.classList.add('hidden');
+    errorState.classList.remove('hidden');
+    resultCard.classList.add('hidden');
+
+    if (word) {
+      webHelpBtn.classList.remove('hidden');
+      webHelpBtn.onclick = () => openWebHelp(word);
+      webHelpBtn.textContent = `Search the web for “${word}”`;
+    } else {
+      webHelpBtn.classList.add('hidden');
+    }
+  }
+
+  function showResult() {
+    loadingState.classList.add('hidden');
+    errorState.classList.add('hidden');
+    resultCard.classList.remove('hidden');
+  }
+
+  /**
+   * Renders a dictionary entry object into the Result Card.
+   * Every optional field is checked and gracefully hidden if missing.
+   */
+  function renderResult(entry, originalWord) {
+    // --- Word title ---
+    wordTitle.textContent = entry.word || originalWord;
+
+    // --- Phonetic text + audio ---
+    const phoneticText = entry.phonetic || (entry.phonetics || []).find(p => p.text)?.text || '';
+    phoneticEl.textContent = phoneticText;
+
+    // Find the first phonetic entry that actually has a playable audio file
+    const audioEntry = (entry.phonetics || []).find(p => p.audio && p.audio.trim() !== '');
+    if (audioEntry) {
+      currentAudio = new Audio(audioEntry.audio);
+      playAudioBtn.classList.remove('hidden');
+    } else {
+      currentAudio = null;
+      playAudioBtn.classList.add('hidden');
+    }
+
+    // --- Primary meaning: use the first meaning block and its first definition ---
+    const firstMeaning = (entry.meanings || [])[0];
+    const firstDef = firstMeaning?.definitions?.[0];
+
+    if (firstMeaning?.partOfSpeech) {
+      partOfSpeechEl.textContent = firstMeaning.partOfSpeech;
+      partOfSpeechEl.classList.remove('hidden');
+    } else {
+      partOfSpeechEl.classList.add('hidden');
+    }
+
+    definitionEl.textContent = firstDef?.definition || 'No definition available for this word.';
+
+    definitionsList.innerHTML = '';
+    const meanings = entry.meanings || [];
+    if (meanings.length) {
+      meanings.slice(0, 5).forEach(meaning => {
+        const card = document.createElement('div');
+        card.className = 'rounded-2xl border border-slate-200 bg-slate-50/70 p-4';
+
+        const badge = document.createElement('p');
+        badge.className = 'text-xs font-semibold uppercase tracking-[0.2em] text-brand-600';
+        badge.textContent = meaning.partOfSpeech || 'Meaning';
+        card.appendChild(badge);
+
+        const list = document.createElement('ul');
+        list.className = 'mt-3 space-y-2 text-sm text-slate-600 list-disc pl-5';
+        (meaning.definitions || []).slice(0, 3).forEach(def => {
+          const item = document.createElement('li');
+          item.textContent = def.definition;
+          list.appendChild(item);
+        });
+        card.appendChild(list);
+        definitionsList.appendChild(card);
+      });
+    }
+
+    // --- Real-life example (fallback: hide the whole section if none exists) ---
+    if (firstDef?.example) {
+      exampleText.textContent = `"${firstDef.example}"`;
+      exampleBox.classList.remove('hidden');
+    } else {
+      exampleBox.classList.add('hidden');
+    }
+
+    // --- Synonyms: gather from the definition level, then the meaning level ---
+    let synonyms = firstDef?.synonyms?.length ? firstDef.synonyms : (firstMeaning?.synonyms || []);
+    // De-duplicate and cap the list so the card stays clean
+    synonyms = [...new Set(synonyms)].slice(0, 8);
+
+    if (synonyms.length > 0) {
+      synonymsList.innerHTML = ''; // clear previous results
+      synonyms.forEach(syn => {
+        const tag = document.createElement('button');
+        tag.textContent = syn;
+        tag.className = 'synonym-tag text-sm px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 hover:bg-brand-50 hover:text-brand-700 transition focus-ring';
+        tag.addEventListener('click', () => performSearch(syn)); // clicking a synonym searches it
+        synonymsList.appendChild(tag);
+      });
+      synonymsSection.classList.remove('hidden');
+    } else {
+      synonymsSection.classList.add('hidden');
+    }
+
+    // --- Learn More Resources: dynamically built external links ---
+    const displayWord = entry.word || originalWord;
+    const encodedWord = encodeURIComponent(displayWord);
+    const resources = [
+      {
+        label: 'Wikipedia',
+        url: `https://en.wikipedia.org/wiki/${encodedWord}`,
+        icon: 'M12 4.5c-4.14 0-7.5 3.36-7.5 7.5s3.36 7.5 7.5 7.5 7.5-3.36 7.5-7.5-3.36-7.5-7.5-7.5z'
+      },
+      {
+        label: 'Merriam-Webster',
+        url: `https://www.merriam-webster.com/dictionary/${encodedWord}`,
+        icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s4.332.477 5.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'
+      },
+      {
+        label: 'Thesaurus.com',
+        url: `https://www.thesaurus.com/browse/${encodedWord}`,
+        icon: 'M4 6h16M4 12h16M4 18h7'
+      }
+    ];
+
+    resourceLinks.innerHTML = ''; // clear previous results
+    resources.forEach(res => {
+      const link = document.createElement('a');
+      link.href = res.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.className = 'focus-ring flex items-center gap-2 justify-center sm:justify-start flex-1 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 transition';
+      link.innerHTML = `
+        <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="${res.icon}" />
+        </svg>
+        ${res.label}
+      `;
+      resourceLinks.appendChild(link);
+    });
+
+    showResult();
+  }
+
+  // ---- Event listeners ----
+
+  // Main homepage search: button click
+  searchButtonMain.addEventListener('click', () => performSearch(searchInputMain.value));
+
+  // Main homepage search: Enter key
+  searchInputMain.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') performSearch(searchInputMain.value);
+  });
+
+  searchInputMain.addEventListener('input', (e) => showSuggestions(e.target.value));
+  searchInputMain.addEventListener('focus', () => showSuggestions(searchInputMain.value));
+
+  // Sticky top search (shown once results are visible): Enter key
+  searchInputTop.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') performSearch(searchInputTop.value);
+  });
+
+  searchInputTop.addEventListener('input', (e) => showSuggestions(e.target.value));
+  searchInputTop.addEventListener('focus', () => showSuggestions(searchInputTop.value));
+
+  // Clicking the small logo in the sticky header returns to the homepage
+  logoSmall.addEventListener('click', () => {
+    resultsArea.classList.add('hidden');
+    stickyHeader.classList.add('hidden');
+    hero.classList.remove('hidden');
+    searchInputMain.value = '';
+    searchInputTop.value = '';
+    hideSuggestions();
+    searchInputMain.focus();
+  });
+
+  // Suggestion chips on the homepage trigger an instant search
+  document.querySelectorAll('.suggestion-chip').forEach(chip => {
+    chip.addEventListener('click', () => performSearch(chip.textContent));
+  });
+
+  // Play pronunciation audio
+  playAudioBtn.addEventListener('click', () => {
+    if (currentAudio) {
+      currentAudio.currentTime = 0; // restart if already played
+      currentAudio.play().catch(err => console.error('Audio playback failed:', err));
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.search-shell')) {
+      hideSuggestions();
+    }
+  });
+
+  // Autofocus the main search input on page load for instant typing
+  window.addEventListener('DOMContentLoaded', () => {
+    renderRecentSearches();
+    searchInputMain.focus();
+  });
+</script>
+</body>
+</html>
